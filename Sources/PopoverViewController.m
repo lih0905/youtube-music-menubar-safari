@@ -4,6 +4,8 @@
 #import <QuartzCore/QuartzCore.h>
 #import <math.h>
 
+static const NSTimeInterval kAlbumArtRetryInterval = 2.0;
+
 @interface PopoverViewController ()
 @property (nonatomic, strong) SafariBridge *bridge;
 @property (nonatomic, strong) NSImageView *albumImageView;
@@ -21,6 +23,9 @@
 @property (nonatomic, strong) NSButton *nextButton;
 @property (nonatomic, assign) BOOL isUserDraggingSlider;
 @property (nonatomic, copy) NSString *lastAlbumArtURL;
+@property (nonatomic, strong) NSImage *lastAlbumArtImage;
+@property (nonatomic, assign) BOOL lastAlbumArtLoaded;
+@property (nonatomic, strong) NSDate *lastAlbumArtAttemptAt;
 @end
 
 @implementation PopoverViewController
@@ -111,6 +116,9 @@
     self.albumImageView.layer.cornerRadius = 14.0;
     self.albumImageView.layer.masksToBounds = YES;
     self.albumImageView.image = [NSImage imageWithSystemSymbolName:@"music.note" accessibilityDescription:nil];
+    if (self.lastAlbumArtLoaded && self.lastAlbumArtImage) {
+        self.albumImageView.image = self.lastAlbumArtImage;
+    }
     [albumShadowWrap addSubview:self.albumImageView];
     [NSLayoutConstraint activateConstraints:@[
         [self.albumImageView.leadingAnchor constraintEqualToAnchor:albumShadowWrap.leadingAnchor],
@@ -406,21 +414,43 @@
 
 - (void)loadAlbumArt:(NSString *)urlString {
     NSString *normalizedURL = urlString ?: @"";
-    if ([self.lastAlbumArtURL isEqualToString:normalizedURL]) {
-        return;
+    BOOL isSameURL = [self.lastAlbumArtURL isEqualToString:normalizedURL];
+    if (!isSameURL) {
+        self.lastAlbumArtURL = normalizedURL;
+        self.lastAlbumArtImage = nil;
+        self.lastAlbumArtLoaded = NO;
+        self.lastAlbumArtAttemptAt = nil;
     }
-    self.lastAlbumArtURL = normalizedURL;
 
     if (normalizedURL.length == 0) {
+        self.lastAlbumArtImage = nil;
+        self.lastAlbumArtLoaded = NO;
         self.albumImageView.image = [NSImage imageWithSystemSymbolName:@"music.note" accessibilityDescription:nil];
         return;
     }
+
+    if (isSameURL) {
+        if (self.lastAlbumArtLoaded) {
+            if (self.lastAlbumArtImage) {
+                self.albumImageView.image = self.lastAlbumArtImage;
+            }
+            return;
+        }
+        if (self.lastAlbumArtAttemptAt &&
+            [[NSDate date] timeIntervalSinceDate:self.lastAlbumArtAttemptAt] < kAlbumArtRetryInterval) {
+            return;
+        }
+    }
+
     NSURL *url = [NSURL URLWithString:normalizedURL];
     if (!url) {
+        self.lastAlbumArtImage = nil;
+        self.lastAlbumArtLoaded = NO;
         self.albumImageView.image = [NSImage imageWithSystemSymbolName:@"music.note" accessibilityDescription:nil];
         return;
     }
     NSString *requestedURL = [normalizedURL copy];
+    self.lastAlbumArtAttemptAt = [NSDate date];
     [[[NSURLSession sharedSession] dataTaskWithURL:url completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (error || !data) {
             return;
@@ -433,7 +463,9 @@
             if (![self.lastAlbumArtURL isEqualToString:requestedURL]) {
                 return;
             }
+            self.lastAlbumArtImage = image;
             self.albumImageView.image = image;
+            self.lastAlbumArtLoaded = YES;
         });
     }] resume];
 }
