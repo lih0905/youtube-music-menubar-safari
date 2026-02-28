@@ -26,6 +26,7 @@ static const NSTimeInterval kAlbumArtRetryInterval = 2.0;
 @property (nonatomic, strong) NSImage *lastAlbumArtImage;
 @property (nonatomic, assign) BOOL lastAlbumArtLoaded;
 @property (nonatomic, strong) NSDate *lastAlbumArtAttemptAt;
+@property (nonatomic, copy) NSString *lastLyricsText;
 @end
 
 @implementation PopoverViewController
@@ -58,10 +59,12 @@ static const NSTimeInterval kAlbumArtRetryInterval = 2.0;
     self.elapsedLabel.stringValue = [self formatTime:state.currentSeconds];
     self.durationLabel.stringValue = state.durationSeconds > 0 ? [self formatTime:state.durationSeconds] : @"--:--";
 
-    if (state.lyrics.length > 0) {
-        [self applyLyricsText:state.lyrics];
-    } else {
-        [self applyLyricsText:@"가사를 불러오지 못했습니다. YouTube Music 가사 탭을 열어두면 인식률이 올라갑니다."];
+    NSString *lyricsText = state.lyrics.length > 0
+        ? state.lyrics
+        : @"가사를 불러오지 못했습니다. YouTube Music 가사 탭을 열어두면 인식률이 올라갑니다.";
+    if (![self.lastLyricsText isEqualToString:lyricsText]) {
+        [self applyLyricsText:lyricsText];
+        self.lastLyricsText = [lyricsText copy];
     }
 
     [self updatePlaybackIconsForPlaying:state.isPlaying];
@@ -233,7 +236,9 @@ static const NSTimeInterval kAlbumArtRetryInterval = 2.0;
     self.lyricsTextView.horizontallyResizable = NO;
     self.lyricsTextView.minSize = NSMakeSize(0, 0);
     self.lyricsTextView.maxSize = NSMakeSize(CGFLOAT_MAX, CGFLOAT_MAX);
-    [self applyLyricsText:@"가사를 불러오는 중..."];
+    NSString *initialLyricsText = @"가사를 불러오는 중...";
+    [self applyLyricsText:initialLyricsText];
+    self.lastLyricsText = initialLyricsText;
 
     self.lyricsScrollView = [[NSScrollView alloc] init];
     self.lyricsScrollView.translatesAutoresizingMaskIntoConstraints = NO;
