@@ -2,6 +2,11 @@
 #import "SafariBridge.h"
 #import "PopoverViewController.h"
 #import "PlayerState.h"
+#import <QuartzCore/QuartzCore.h>
+
+static const CGFloat kPopoverFromStatusItemRight = 30.0;
+static const CGFloat kPopoverFromStatusItemBottom = 0.0;
+static const CGFloat kPopoverAnchorSize = 1.0;
 
 @interface AppDelegate ()
 @property (nonatomic, strong) NSStatusItem *statusItem;
@@ -10,6 +15,8 @@
 @property (nonatomic, strong) PopoverViewController *popoverVC;
 @property (nonatomic, strong) NSTimer *timer;
 @property (nonatomic, strong) PlayerState *lastState;
+@property (nonatomic, strong) NSWindow *popoverAnchorWindow;
+@property (nonatomic, strong) NSView *popoverAnchorView;
 @end
 
 @implementation AppDelegate
@@ -62,6 +69,7 @@
 
     self.popoverVC = [[PopoverViewController alloc] initWithBridge:self.bridge];
     self.popover.contentViewController = self.popoverVC;
+    [self ensurePopoverAnchorWindowAtScreenPoint:[self currentStatusItemAnchorPointOnScreen]];
 }
 
 - (void)refreshState {
@@ -98,8 +106,66 @@
         [self.popover performClose:sender];
     } else {
         [self.popoverVC updateWithState:self.lastState];
-        [self.popover showRelativeToRect:button.bounds ofView:button preferredEdge:NSRectEdgeMinY];
+        NSPoint anchorPoint = [self currentStatusItemAnchorPointOnScreen];
+        [self ensurePopoverAnchorWindowAtScreenPoint:anchorPoint];
+        [self.popoverAnchorWindow orderFront:nil];
+        if (self.popoverAnchorView.window) {
+            [self.popover showRelativeToRect:self.popoverAnchorView.bounds
+                                      ofView:self.popoverAnchorView
+                               preferredEdge:NSRectEdgeMinY];
+        } else {
+            [self.popover showRelativeToRect:button.bounds ofView:button preferredEdge:NSRectEdgeMinY];
+        }
         [self.popover.contentViewController.view.window makeKeyWindow];
+    }
+}
+
+- (NSPoint)currentStatusItemAnchorPointOnScreen {
+    NSStatusBarButton *button = self.statusItem.button;
+    if (button.window) {
+        NSRect buttonRectOnScreen = [button.window convertRectToScreen:button.frame];
+        CGFloat x = NSMaxX(buttonRectOnScreen) - kPopoverFromStatusItemRight;
+        CGFloat y = NSMinY(buttonRectOnScreen) + kPopoverFromStatusItemBottom;
+        return NSMakePoint(x, y);
+    }
+
+    NSScreen *fallbackScreen = NSScreen.mainScreen;
+    if (!fallbackScreen && NSScreen.screens.count > 0) {
+        fallbackScreen = NSScreen.screens.firstObject;
+    }
+    NSRect fallbackFrame = fallbackScreen ? fallbackScreen.frame : NSMakeRect(0, 0, 1440, 900);
+    CGFloat fallbackMenuBarThickness = NSStatusBar.systemStatusBar.thickness;
+    CGFloat fallbackX = NSMaxX(fallbackFrame) - 40.0;
+    CGFloat fallbackY = NSMaxY(fallbackFrame) - fallbackMenuBarThickness;
+    return NSMakePoint(fallbackX, fallbackY);
+}
+
+- (NSRect)popoverAnchorWindowFrameForScreenPoint:(NSPoint)point {
+    return NSMakeRect(point.x, point.y, kPopoverAnchorSize, kPopoverAnchorSize);
+}
+
+- (void)ensurePopoverAnchorWindowAtScreenPoint:(NSPoint)point {
+    NSRect anchorFrame = [self popoverAnchorWindowFrameForScreenPoint:point];
+    if (!self.popoverAnchorWindow) {
+        self.popoverAnchorWindow = [[NSWindow alloc] initWithContentRect:anchorFrame
+                                                                styleMask:NSWindowStyleMaskBorderless
+                                                                  backing:NSBackingStoreBuffered
+                                                                    defer:NO];
+        self.popoverAnchorWindow.opaque = NO;
+        self.popoverAnchorWindow.backgroundColor = [NSColor clearColor];
+        self.popoverAnchorWindow.hasShadow = NO;
+        self.popoverAnchorWindow.ignoresMouseEvents = YES;
+        self.popoverAnchorWindow.level = NSStatusWindowLevel;
+        self.popoverAnchorWindow.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces
+                                                    | NSWindowCollectionBehaviorStationary
+                                                    | NSWindowCollectionBehaviorIgnoresCycle;
+
+        self.popoverAnchorView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, kPopoverAnchorSize, kPopoverAnchorSize)];
+        self.popoverAnchorView.wantsLayer = YES;
+        self.popoverAnchorView.layer.backgroundColor = [NSColor clearColor].CGColor;
+        self.popoverAnchorWindow.contentView = self.popoverAnchorView;
+    } else {
+        [self.popoverAnchorWindow setFrame:anchorFrame display:NO];
     }
 }
 
