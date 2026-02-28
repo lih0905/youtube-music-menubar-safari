@@ -21,7 +21,7 @@ cp "$BUILD_DIR/ytmusic_status.png" "$RES_DIR/ytmusic_status.png"
 cp "$BUILD_DIR/ytmusic_1024.png" "$RES_DIR/AppIcon.png"
 cp "$ROOT_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 
-clang -fobjc-arc -framework Cocoa \
+clang -fobjc-arc -framework Cocoa -framework QuartzCore \
   "$ROOT_DIR/Sources/main.m" \
   "$ROOT_DIR/Sources/AppDelegate.m" \
   "$ROOT_DIR/Sources/PlayerState.m" \
