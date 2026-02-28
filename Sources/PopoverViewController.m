@@ -5,6 +5,10 @@
 #import <math.h>
 
 static const NSTimeInterval kAlbumArtRetryInterval = 2.0;
+static const CFTimeInterval kControlPressDownDuration = 0.07;
+static const CFTimeInterval kControlPressUpDuration = 0.13;
+static const CGFloat kControlPressScale = 0.90;
+static const CGFloat kControlPressOpacity = 0.88;
 
 @interface PopoverViewController ()
 @property (nonatomic, strong) SafariBridge *bridge;
@@ -476,16 +480,19 @@ static const NSTimeInterval kAlbumArtRetryInterval = 2.0;
 }
 
 - (void)onPrevious {
+    [self animatePressFeedbackForButton:self.prevButton];
     [self.bridge sendCommand:PlaybackCommandPrevious];
     [self refreshSoon];
 }
 
 - (void)onPlayPause {
+    [self animatePressFeedbackForButton:self.playPauseButton];
     [self.bridge sendCommand:PlaybackCommandPlayPause];
     [self refreshSoon];
 }
 
 - (void)onNext {
+    [self animatePressFeedbackForButton:self.nextButton];
     [self.bridge sendCommand:PlaybackCommandNext];
     [self refreshSoon];
 }
@@ -502,6 +509,47 @@ static const NSTimeInterval kAlbumArtRetryInterval = 2.0;
         self.isUserDraggingSlider = NO;
         [self refreshSoon];
     });
+}
+
+- (void)animatePressFeedbackForButton:(NSButton *)button {
+    if (!button.layer) {
+        return;
+    }
+
+    [button.layer removeAnimationForKey:@"ytm-control-press"];
+
+    CABasicAnimation *scaleDown = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
+    scaleDown.fromValue = @1.0;
+    scaleDown.toValue = @(kControlPressScale);
+    scaleDown.duration = kControlPressDownDuration;
+    scaleDown.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+
+    CABasicAnimation *scaleUp = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
+    scaleUp.fromValue = @(kControlPressScale);
+    scaleUp.toValue = @1.0;
+    scaleUp.beginTime = kControlPressDownDuration;
+    scaleUp.duration = kControlPressUpDuration;
+    scaleUp.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+
+    CABasicAnimation *fadeDown = [CABasicAnimation animationWithKeyPath:@"opacity"];
+    fadeDown.fromValue = @1.0;
+    fadeDown.toValue = @(kControlPressOpacity);
+    fadeDown.duration = kControlPressDownDuration;
+    fadeDown.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+
+    CABasicAnimation *fadeUp = [CABasicAnimation animationWithKeyPath:@"opacity"];
+    fadeUp.fromValue = @(kControlPressOpacity);
+    fadeUp.toValue = @1.0;
+    fadeUp.beginTime = kControlPressDownDuration;
+    fadeUp.duration = kControlPressUpDuration;
+    fadeUp.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+
+    CAAnimationGroup *group = [CAAnimationGroup animation];
+    group.animations = @[scaleDown, scaleUp, fadeDown, fadeUp];
+    group.duration = kControlPressDownDuration + kControlPressUpDuration;
+    group.removedOnCompletion = YES;
+    group.fillMode = kCAFillModeForwards;
+    [button.layer addAnimation:group forKey:@"ytm-control-press"];
 }
 
 - (void)refreshSoon {
