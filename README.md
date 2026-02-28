@@ -16,7 +16,7 @@ Safari에서 YouTube Music 재생 상태를 읽어 메뉴바에 `가수 - 제목
 
 ## 빌드
 ```bash
-cd "/Users/inhwanlee/Documents/New project/YouTubeMusicMenuBar"
+cd "/Users/inhwanlee/Documents/New project"
 ./Scripts/build.sh
 ```
 
@@ -26,7 +26,7 @@ cd "/Users/inhwanlee/Documents/New project/YouTubeMusicMenuBar"
 
 ## 설치
 ```bash
-cp -R "/Users/inhwanlee/Documents/New project/YouTubeMusicMenuBar/Build/YouTubeMusicMenuBar.app" /Applications/
+cp -R "/Users/inhwanlee/Documents/New project/Build/YouTubeMusicMenuBar.app" /Applications/
 ```
 
 ## 권한
