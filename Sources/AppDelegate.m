@@ -58,7 +58,7 @@
 - (void)setupPopover {
     self.popover = [[NSPopover alloc] init];
     self.popover.behavior = NSPopoverBehaviorTransient;
-    self.popover.contentSize = NSMakeSize(380, 520);
+    self.popover.contentSize = NSMakeSize(392, 560);
 
     self.popoverVC = [[PopoverViewController alloc] initWithBridge:self.bridge];
     self.popover.contentViewController = self.popoverVC;
